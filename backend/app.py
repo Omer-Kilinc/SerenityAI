@@ -2,16 +2,12 @@ from flask import Flask, request, jsonify
 import os
 from dotenv import load_dotenv
 from utils.transcription import transcribe_audio
-from utils.voice_tone_analysis import analyze_voice_tone
+from utils.opensmile_analysis import analyze_voice_with_opensmile
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return "Multi-Modal Journaling Backend"
 
 @app.route("/analyze-voice", methods=["POST"])
 def analyze_voice():
@@ -29,13 +25,13 @@ def analyze_voice():
         # Step 1: Transcribe audio to text (optional, if needed)
         #transcription = transcribe_audio(audio_path)
 
-        # Step 2: Analyze voice tone (acoustic properties)
-        tone_analysis = analyze_voice_tone(audio_path)
+        # Step 2: Analyze voice tone using OpenSmile
+        opensmile_features = analyze_voice_with_opensmile(audio_path)
 
         # Return results
         return jsonify({
         #    "transcription": transcription,  # Optional
-            "tone_analysis": tone_analysis  # Acoustic analysis
+            "opensmile_features": opensmile_features  # OpenSmile feature analysis
         }), 200
 
     except Exception as e:
