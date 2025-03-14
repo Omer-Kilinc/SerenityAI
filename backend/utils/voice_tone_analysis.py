@@ -1,20 +1,27 @@
-import os
-from ibm_watson import ToneAnalyzerV3
-from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+import librosa
+import numpy as np
 
-def analyze_tone(text):
-    # Set up IBM Watson Tone Analyzer client
-    authenticator = IAMAuthenticator(os.getenv("IBM_TONE_ANALYZER_API_KEY"))
-    tone_analyzer = ToneAnalyzerV3(
-        version="2023-09-21",
-        authenticator=authenticator
-    )
-    tone_analyzer.set_service_url(os.getenv("IBM_TONE_ANALYZER_URL"))
+def analyze_voice_tone(audio_path):
+    # Load the audio file
+    y, sr = librosa.load(audio_path, sr=None)
 
-    # Analyze tone
-    tone_analysis = tone_analyzer.tone(
-        {"text": text},
-        content_type="application/json"
-    ).get_result()
+    # Extract features
+    pitch = librosa.yin(y, fmin=80, fmax=400)  # Pitch (fundamental frequency)
+    intensity = np.abs(y)  # Intensity (amplitude)
 
-    return tone_analysis
+    # Calculate statistics
+    pitch_mean = np.mean(pitch)
+    pitch_std = np.std(pitch)
+    intensity_mean = np.mean(intensity)
+    intensity_std = np.std(intensity)
+
+    return {
+        "pitch": {
+            "mean": float(pitch_mean),
+            "std": float(pitch_std)
+        },
+        "intensity": {
+            "mean": float(intensity_mean),
+            "std": float(intensity_std)
+        }
+    }

@@ -27,14 +27,14 @@ def analyze_voice():
 
     try:
         # Step 1: Transcribe audio to text (optional, if needed)
-        transcription = transcribe_audio(audio_path)
+        #transcription = transcribe_audio(audio_path)
 
         # Step 2: Analyze voice tone (acoustic properties)
         tone_analysis = analyze_voice_tone(audio_path)
 
         # Return results
         return jsonify({
-            "transcription": transcription,  # Optional
+        #    "transcription": transcription,  # Optional
             "tone_analysis": tone_analysis  # Acoustic analysis
         }), 200
 
