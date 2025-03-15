@@ -28,41 +28,87 @@ export default function JournalPage() {
   const [currentPrompt, setCurrentPrompt] = useState(journalPrompts[0])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Function to handle voice recording (mock implementation)
-  const toggleRecording = () => {
-    setIsRecording(!isRecording)
+  // Function to handle voice recording
+  const toggleRecording = async () => {
+    setIsRecording(!isRecording);
 
-    // In a real implementation, this would use the Web Speech API
-    // or another speech recognition service
     if (!isRecording) {
-      // Start recording simulation
-      setTimeout(() => {
-        setJournalText(
-          (prev) =>
-            prev +
-            (prev ? " " : "") +
-            "This is simulated voice input that would be replaced with actual transcription in the real app.",
-        )
-        setIsRecording(false)
-      }, 3000)
+      // Start recording (mock implementation)
+      const audioBlob = new Blob(["Simulated audio data"], { type: "audio/wav" }); // Replace with actual recording logic
+      const audioFile = new File([audioBlob], "recording.wav", { type: "audio/wav" });
+
+      try {
+        // Prepare the form data to send to the backend
+        const formData = new FormData();
+        formData.append("user_id", "12345"); // Replace with the actual user ID
+        formData.append("audio", audioFile);
+
+        // Send the audio file to the backend
+        const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save voice journal entry");
+        }
+
+        const result = await response.json();
+
+        // Handle the response from the backend
+        console.log("Voice journal entry saved successfully:", result);
+        setJournalText(result.transcription); // Update the textarea with the transcription
+        alert("Voice journal entry submitted successfully!");
+      } catch (error) {
+        console.error("Error submitting voice journal entry:", error);
+        alert("Failed to submit voice journal entry. Please try again.");
+      } finally {
+        setIsRecording(false);
+      }
     }
-  }
+  };
 
   // Function to handle journal submission
-  const handleSubmit = () => {
-    if (!journalText.trim()) return
+  const handleSubmit = async () => {
+    if (!journalText.trim()) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
-    // This would send the journal entry to your backend for processing
-    // with the NLP and emotional analysis
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setJournalText("")
-      // In a real app, you would redirect to the dashboard or show a success message
-      alert("Journal entry submitted successfully!")
-    }, 2000)
-  }
+    try {
+      // Prepare the data to send to the backend
+      const payload = {
+        user_id: "12345", // Replace with the actual user ID or fetch from auth context
+        journal_entry: journalText, // Send the journal text
+      };
+
+      // Send the journal entry to the backend
+      const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save journal entry");
+      }
+
+      const result = await response.json();
+
+      // Handle the response from the backend
+      console.log("Journal entry saved successfully:", result);
+      alert("Journal entry submitted successfully!");
+
+      // Reset the form
+      setJournalText("");
+    } catch (error) {
+      console.error("Error submitting journal entry:", error);
+      alert("Failed to submit journal entry. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Function to select a random prompt
   const getRandomPrompt = () => {
@@ -228,4 +274,3 @@ export default function JournalPage() {
     </Layout>
   )
 }
-

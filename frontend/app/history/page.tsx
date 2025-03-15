@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar, Search, ChevronDown, ArrowUpDown, Eye } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,73 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Layout from "@/components/layout"
-
-// Mock journal entries
-const journalEntries = [
-  {
-    id: 1,
-    date: "2025-03-14",
-    time: "08:30 AM",
-    content:
-      "Today was a really productive day. I finished my project ahead of schedule and got positive feedback from my team. I went for a run in the evening which helped clear my mind. Overall feeling accomplished and happy.",
-    mood: "happy",
-    tags: ["work", "exercise", "productive"],
-  },
-  {
-    id: 2,
-    date: "2025-03-13",
-    time: "09:15 PM",
-    content:
-      "Had a relaxing day today. Spent some time reading and meditating. The weather was nice so I went for a walk in the park. Feeling calm and centered.",
-    mood: "calm",
-    tags: ["relaxation", "meditation", "outdoors"],
-  },
-  {
-    id: 3,
-    date: "2025-03-12",
-    time: "10:45 PM",
-    content:
-      "Difficult day at work with a lot of pressure. Had a disagreement with a colleague which left me feeling frustrated. Didn't sleep well last night which probably contributed to my mood. Need to focus on better sleep habits.",
-    mood: "anxious",
-    tags: ["work", "stress", "conflict"],
-  },
-  {
-    id: 4,
-    date: "2025-03-11",
-    time: "07:20 PM",
-    content:
-      "Feeling a bit down today without any specific reason. Weather was gloomy which didn't help. Tried to cheer myself up by watching a movie but still feeling low. Tomorrow will be better.",
-    mood: "sad",
-    tags: ["mood", "reflection"],
-  },
-  {
-    id: 5,
-    date: "2025-03-10",
-    time: "09:30 PM",
-    content:
-      "Average day, nothing particularly good or bad happened. Work was routine. Had dinner with family which was nice. Not feeling much of anything - just neutral.",
-    mood: "neutral",
-    tags: ["family", "routine"],
-  },
-  {
-    id: 6,
-    date: "2025-03-09",
-    time: "08:45 PM",
-    content:
-      "Great day! Got a promotion at work that I've been working toward for months. Celebrated with friends in the evening. Feeling on top of the world right now.",
-    mood: "happy",
-    tags: ["work", "celebration", "achievement"],
-  },
-  {
-    id: 7,
-    date: "2025-03-08",
-    time: "10:15 PM",
-    content:
-      "Spent the day hiking with friends. The views were amazing and the physical activity felt great. Had meaningful conversations and feel connected and refreshed.",
-    mood: "happy",
-    tags: ["friends", "hiking", "nature"],
-  },
-]
 
 // Mood emoji mapping
 const moodEmojis = {
@@ -91,13 +24,35 @@ const moodEmojis = {
 export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [moodFilter, setMoodFilter] = useState("all")
-  const [selectedEntry, setSelectedEntry] = useState<(typeof journalEntries)[0] | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState(null)
+  const [journalEntries, setJournalEntries] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch journal entries from the backend
+  useEffect(() => {
+    const fetchJournalEntries = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:5000/api/journal-entries")
+        if (!response.ok) {
+          throw new Error("Failed to fetch journal entries")
+        }
+        const data = await response.json()
+        setJournalEntries(data)
+      } catch (error) {
+        console.error("Error fetching journal entries:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchJournalEntries()
+  }, [])
 
   // Filter entries based on search query and mood filter
   const filteredEntries = journalEntries.filter((entry) => {
     const matchesSearch =
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      entry.activities.some((activity) => activity.toLowerCase().includes(searchQuery.toLowerCase()))
 
     const matchesMood = moodFilter === "all" || entry.mood === moodFilter
 
@@ -105,13 +60,23 @@ export default function HistoryPage() {
   })
 
   // Format date for display
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
     })
+  }
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-screen">
+          <p>Loading journal entries...</p>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -187,7 +152,7 @@ export default function HistoryPage() {
                         <TableRow key={entry.id}>
                           <TableCell>
                             <div className="font-medium">{formatDate(entry.date)}</div>
-                            <div className="text-xs text-muted-foreground">{entry.time}</div>
+                            <div className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleTimeString()}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -200,9 +165,9 @@ export default function HistoryPage() {
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
                             <div className="flex flex-wrap gap-1">
-                              {entry.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
+                              {entry.activities.map((activity) => (
+                                <Badge key={activity} variant="outline" className="text-xs">
+                                  {activity}
                                 </Badge>
                               ))}
                             </div>
@@ -250,7 +215,7 @@ export default function HistoryPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <span>
-                    {formatDate(selectedEntry.date)} - {selectedEntry.time}
+                    {formatDate(selectedEntry.date)} - {new Date(selectedEntry.date).toLocaleTimeString()}
                   </span>
                   <span className="text-xl">{moodEmojis[selectedEntry.mood as keyof typeof moodEmojis]}</span>
                 </CardTitle>
@@ -268,9 +233,9 @@ export default function HistoryPage() {
               <div className="mt-4">
                 <h4 className="text-sm font-medium mb-2">Tags:</h4>
                 <div className="flex flex-wrap gap-1">
-                  {selectedEntry.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
+                  {selectedEntry.activities.map((activity) => (
+                    <Badge key={activity} variant="secondary">
+                      {activity}
                     </Badge>
                   ))}
                 </div>
@@ -280,14 +245,10 @@ export default function HistoryPage() {
                 <h4 className="text-sm font-medium mb-2">AI Analysis:</h4>
                 <div className="space-y-2">
                   <p className="text-sm">
-                    <strong>Sentiment:</strong> Positive (85%)
+                    <strong>Wellbeing Score:</strong> {selectedEntry.wellbeing_score}/100
                   </p>
                   <p className="text-sm">
-                    <strong>Key Emotions:</strong> Happiness, Accomplishment, Satisfaction
-                  </p>
-                  <p className="text-sm">
-                    <strong>Insight:</strong> This entry shows a strong correlation between physical activity and
-                    positive mood. Your wellbeing score increased by 12 points after this entry.
+                    <strong>Tone Analysis:</strong> {selectedEntry.tone_analysis}
                   </p>
                 </div>
               </div>
@@ -306,4 +267,3 @@ export default function HistoryPage() {
     </Layout>
   )
 }
-

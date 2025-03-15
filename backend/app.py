@@ -136,6 +136,34 @@ def analyze_emotions(text):
         "wellbeing_score": wellbeing_score
     }
 
+@app.route("/api/journal-entries", methods=["GET"])
+def get_journal_entries():
+    """
+    Endpoint to fetch all journal entries from the CSV file.
+    """
+    try:
+        # Read the journal entries from the CSV file
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+        
+        # Format the entries for the frontend
+        formatted_entries = []
+        for entry in entries:
+            formatted_entries.append({
+                "id": entry["timestamp"],  # Use timestamp as a unique ID
+                "date": entry["timestamp"],  # Use timestamp for date
+                "content": entry["content"],
+                "activities": entry["activities"].split(", ") if entry["activities"] else [],  # Convert activities to list
+                "wellbeing_score": int(entry["wellbeing_score"]),
+                "tone_analysis": entry["tone_analysis"],
+            })
+        
+        # Return the formatted entries
+        return jsonify(formatted_entries), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/save-journal-entry", methods=["POST"])
 def save_journal_entry():
     # Get data from the request
