@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}Breathing Exercises{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/breathing.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Breathing Exercises</h1>
+    <p>Practice mindful breathing to reduce stress and anxiety</p>
+</section>
+
+<section class="breathing-exercises">
+    <div class="exercise-selector">
+        <button class="exercise-btn active" data-exercise="box">Box Breathing</button>
+        <button class="exercise-btn" data-exercise="4-7-8">4-7-8 Technique</button>
+        <button class="exercise-btn" data-exercise="deep">Deep Breathing</button>
+    </div>
+
+    <div class="exercise-container">
+        <div class="exercise-info">
+            <h2 id="exercise-title">Box Breathing</h2>
+            <p id="exercise-description">Box breathing involves inhaling, holding, exhaling, and holding again for equal counts. This technique can help reduce stress and improve focus.</p>
+        </div>
+
+        <div class="breathing-animation">
+            <div class="circle-container">
+                <div class="breathing-circle"></div>
+                <div class="breathing-instruction" id="breathing-instruction">Inhale</div>
+                <div class="breathing-timer" id="breathing-timer">4</div>
+            </div>
+        </div>
+
+        <div class="exercise-controls">
+            <button id="start-exercise" class="btn primary-btn">Start Exercise</button>
+            <button id="stop-exercise" class="btn secondary-btn hidden">Stop Exercise</button>
+            <div class="duration-selector">
+                <span>Duration:</span>
+                <select id="exercise-duration">
+                    <option value="60">1 minute</option>
+                    <option value="120">2 minutes</option>
+                    <option value="180">3 minutes</option>
+                    <option value="300">5 minutes</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/breathing.js') }}"></script>
+{% endblock %}
+

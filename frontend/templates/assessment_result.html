@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+
+{% block title %}Assessment Results{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Your Assessment Results</h1>
+</section>
+
+<section class="results-section">
+    <div class="results-card">
+        <div class="results-header">
+            <h2>Your Stress Level</h2>
+            <div class="score-display">
+                <div class="score">{{ score }}/20</div>
+            </div>
+        </div>
+        
+        <div class="results-content">
+            <p class="result-message">{{ result }}</p>
+            
+            <div class="recommendations">
+                <h3>Recommendations</h3>
+                <ul>
+                    <li>Try our <a href="/breathing">breathing exercises</a> to help manage stress in the moment</li>
+                    <li>Consider tracking your mood daily with our <a href="/mood-tracker">mood tracker</a></li>
+                    <li>Explore our <a href="/resources">resources section</a> for more information and support</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="results-actions">
+            <a href="/assessment" class="btn secondary-btn">Retake Assessment</a>
+            <a href="/" class="btn primary-btn">Return Home</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

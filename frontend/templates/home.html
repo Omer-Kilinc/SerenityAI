@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>Welcome to SerenityAI</h1>
+        <p>Your companion for mental wellbeing and mindfulness</p>
+        <a href="/assessment" class="btn primary-btn">Take Self-Assessment</a>
+    </div>
+</section>
+
+<section class="features">
+    <h2>How SerenityAI Can Help You</h2>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="feature-icon">😊</div>
+            <h3>Mood Tracking</h3>
+            <p>Track your daily mood patterns to gain insights into your emotional wellbeing.</p>
+            <a href="/mood-tracker" class="btn secondary-btn">Track Mood</a>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🧘</div>
+            <h3>Breathing Exercises</h3>
+            <p>Guided breathing exercises to help reduce stress and anxiety.</p>
+            <a href="/breathing" class="btn secondary-btn">Start Breathing</a>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3>Mental Health Resources</h3>
+            <p>Access to helpful resources and information about mental health.</p>
+            <a href="/resources" class="btn secondary-btn">View Resources</a>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📋</div>
+            <h3>Self-Assessment</h3>
+            <p>Simple assessment tools to help you understand your mental wellbeing.</p>
+            <a href="/assessment" class="btn secondary-btn">Take Assessment</a>
+        </div>
+    </div>
+</section>
+
+<section class="about">
+    <h2>About SerenityAI</h2>
+    <p>SerenityAI is a mental health and wellbeing companion designed to help you navigate the challenges of everyday life. Our mission is to make mental health resources accessible to everyone and promote mindfulness practices for a healthier mind.</p>
+    <p>This prototype was developed for a hackathon to demonstrate how technology can be leveraged to support mental wellbeing.</p>
+</section>
+{% endblock %}
+
