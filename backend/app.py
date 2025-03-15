@@ -90,10 +90,7 @@ def analyze_voice():
 
     try:
         # Perform transcription
-        #transcription = transcribe_audio(audio_path)
-        
-        # Perform tone analysis
-        tone_analysis = analyze_voice_tone(audio_path)
+        transcription = transcribe_audio(audio_path)
         
         # Perform emotion analysis
         result_1 = classify_audio(audio_path)
@@ -102,8 +99,7 @@ def analyze_voice():
         combined_emotions = combine_results(result_1, result_2, LABEL_MAPPING)
         
         return jsonify({
-        #    "transcription": transcription,
-            "tone_analysis": tone_analysis,
+            "transcription": transcription,
             "audio_emotion_analysis": combined_emotions,
         }), 200
     except Exception as e:
