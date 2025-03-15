@@ -5,6 +5,13 @@ from dotenv import load_dotenv
 from transformers import pipeline
 from utils.transcription import transcribe_audio
 from utils.opensmile_analysis import analyze_voice_tone
+from utils.audio_preprocessing import preprocess_audio
+from utils.opensmile_analysis import extract_opensmile_features, predict_emotion
+from utils.hatman_model import classify_audio
+from utils.emotion_utils import combine_results, LABEL_MAPPING
+from utils.transcription import transcribe_audio
+#from utils.opensmile_analysis import analyze_voice_tone
+
 import Garmin_API
 
 # Load environment variables
@@ -76,14 +83,22 @@ def analyze_voice():
     audio_file.save(audio_path)
 
     try:
-        transcription = transcribe_audio(audio_path)
+        # Perform transcription
+        #transcription = transcribe_audio(audio_path)
+        
+        # Perform tone analysis
         tone_analysis = analyze_voice_tone(audio_path)
-        emotion_results = analyze_text_emotions(transcription)
-
+        
+        # Perform emotion analysis
+        result_1 = classify_audio(audio_path)
+        opensmile_features = extract_opensmile_features(audio_path)
+        result_2 = predict_emotion(opensmile_features)
+        combined_emotions = combine_results(result_1, result_2, LABEL_MAPPING)
+        
         return jsonify({
-            "transcription": transcription,
+        #    "transcription": transcription,
             "tone_analysis": tone_analysis,
-            "emotion_analysis": emotion_results
+            "audio_emotion_analysis": combined_emotions,
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
