@@ -1,23 +1,31 @@
 from transformers import pipeline
+import re
 
-# ✅ Load a better multi-label emotion model
-print("Loading AI model for improved multi-emotion analysis...")
-emotion_pipeline = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=None)
+print("Loading AI model for sentence-by-sentence emotion analysis...")
+emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
 
-# 📌 Function to Analyze ALL Emotions (Fixes Single-Emotion Bias)
-def analyze_emotions(text):
-    results = emotion_pipeline(text)[0]  # Get all emotion scores
+# Function to split text into sentences (without using NLTK)
+def split_sentences(text):
+    sentences = re.split(r'(?<=[.!?]) +', text)  # Splits at `.`, `!`, `?` followed by a space
+    return sentences
 
-    print("\n🔍 **Emotion Analysis:**")
-    for result in results:
-        emotion = result['label']
-        score = result['score']
-        print(f"{emotion.capitalize()}: {score:.2f}")
+# Function to analyze emotions for each sentence
+def analyze_text_emotions(text):
+    sentences = split_sentences(text)
+    emotion_totals = {}
+    sentence_count = 0
 
-# 📌 Main Loop for User Input
-if __name__ == "__main__":
-    print("\n💬 AI Emotion Journal")
-    journal_entry = input("✍️ Enter your journal entry: ")
+    for sentence in sentences:
+        results = emotion_pipeline(sentence)[0]
 
-    # Analyze the text
-    analyze_emotions(journal_entry)
+        if not emotion_totals:
+            emotion_totals = {result['label']: 0 for result in results}
+
+        for result in results:
+            emotion_totals[result['label']] += result['score']
+
+        sentence_count += 1
+
+    averaged_emotions = {emotion: round(score / sentence_count, 4) for emotion, score in emotion_totals.items()} if sentence_count > 0 else {}
+    return averaged_emotions
+
