@@ -18,3 +18,4 @@ transformers
 garminconnect
 google-genai
 transformers
+spacy

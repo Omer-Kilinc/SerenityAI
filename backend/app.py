@@ -15,11 +15,13 @@ import Garmin_API
 from google import genai
 import csv
 from datetime import datetime
+from flask_cors import CORS
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app) 
 
 # Load AI model for text-based emotion detection
 emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
@@ -36,6 +38,28 @@ if not os.path.exists(JOURNAL_CSV_PATH):
     with open(JOURNAL_CSV_PATH, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["timestamp", "user_id", "content", "activities", "tone_analysis", "wellbeing_score"])
+
+
+@app.route("/api/wellbeing-score", methods=["GET"])
+def get_wellbeing_score():
+    """
+    Endpoint to fetch the most recent wellbeing score.
+    """
+    try:
+        # Read the journal entries from the CSV file
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+        
+        # Get the most recent entry
+        if entries:
+            most_recent_entry = entries[-1]  # Last entry in the list
+            wellbeing_score = int(most_recent_entry["wellbeing_score"])
+            return jsonify({"wellbeing_score": wellbeing_score}), 200
+        else:
+            return jsonify({"error": "No journal entries found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def calculate_wellbeing_score(emotions):
     """Calculate wellbeing score based on emotions."""
@@ -311,3 +335,4 @@ def analyze_activity_impact():
 # Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True)
+

@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import Layout from "@/components/layout"
 import Link from "next/link"
+import axios from "axios"
+import { useEffect } from "react"
+
 
 export default function Dashboard() {
   // Mock data - would be replaced with actual data from your backend
-  const [wellbeingScore, setWellbeingScore] = useState(78)
+  const [wellbeingScore, setWellbeingScore] = useState(0)
   const [sleepScore, setSleepScore] = useState(85)
   const [activityScore, setActivityScore] = useState(62)
   const [moodDistribution, setMoodDistribution] = useState({
@@ -33,8 +36,24 @@ export default function Dashboard() {
     { day: "Thu", score: 90 },
     { day: "Fri", score: 85 },
     { day: "Sat", score: 72 },
-    { day: "Sun", score: 78 },
+    { day: "Sun", score: 78 },    
   ]
+
+  useEffect(() => {
+    // Fetch the wellbeing score from the backend
+    const fetchWellbeingScore = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:5000/api/wellbeing-score")
+        const data = response.data
+        setWellbeingScore(data.wellbeing_score)  // Update the state with the fetched score
+      } catch (error) {
+        console.error("Error fetching wellbeing score:", error)
+        setWellbeingScore(0)  // Fallback to 0 if there's an error
+      }
+    }
+
+    fetchWellbeingScore()
+  }, [])  // Empty dependency array ensures this runs only once on mount
 
   return (
     <Layout>
