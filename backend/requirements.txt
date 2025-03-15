@@ -1,11 +1,13 @@
 # Install Dependencies with "pip install -r requirements.txt"
 
-Flask==2.3.2
+flask==2.3.2
 google-cloud-speech==2.15.1
 librosa==0.10.0
-numpy==1.23.5
+numpy
 python-dotenv==0.21.0
 opensmile==2.5.1
 joblib
 scikit-learn
 pandas
+garminconnect
+google-genai
