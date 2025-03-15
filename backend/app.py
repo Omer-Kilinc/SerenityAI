@@ -11,8 +11,8 @@ from utils.hatman_model import classify_audio
 from utils.emotion_utils import combine_results, LABEL_MAPPING
 from utils.transcription import transcribe_audio
 #from utils.opensmile_analysis import analyze_voice_tone
-
 import Garmin_API
+from google import genai
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +22,12 @@ app = Flask(__name__)
 # Load AI model for text-based emotion detection
 
 emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
+
+# Gemini Handling For Custom Querys
+def GeminiCustom(query):
+    return Garmin_API.client.models.generate_content(
+        model = 'gemini-2.0-pro-exp-02-05', 
+        contents = query)
 
 # Function to split text into sentences (without using NLTK)
 def split_sentences(text):
@@ -127,7 +133,7 @@ def generateQuestions():
     
     text = data["text"]
     
-    return jsonify({"Generated Questions": Garmin_API.CustomReply(f'Generate 1-5 follow up questions about the users log to further the understanding of the clients emotions, activities throughout the day and stress levels. Keep the questions engaging and brief. The users log : {text} .')})
+    return jsonify({"Generated Questions": GeminiCustom(f'Generate 1-5 follow up questions about the users log to further the understanding of the clients emotions, activities throughout the day and stress levels. Keep the questions engaging and brief. The users log : {text} .')})
 
 # Route for Gemini Based Garmin Watch Analysis
 @app.route("/analyze-Garmin", methods=["POST"])
@@ -149,7 +155,7 @@ def analyze_Garmin():
     
     else:
         if data['Custom Query'] != '' :
-            return jsonify({'Custom': Garmin_API.CustomReply(data['Custom Query'])})
+            return jsonify({'Custom': GeminiCustom(data['Custom Query'])})
         else:
             return jsonify({'Error': 'No String Provided For Query'})
             
