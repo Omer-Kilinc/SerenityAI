@@ -94,6 +94,17 @@ def analyze_text():
     
     return jsonify({"emotion_analysis": emotion_results})
 
+# Route for Gemini Generate Questions Based on Log
+@app.route("/generate-questions", methods=["POST"])
+def generateQuestions():
+    data = request.json
+    if "text" not in data:
+        return jsonify({"error": "Missing 'text' field"}), 400
+    
+    text = data["text"]
+    
+    return jsonify({"Generated Questions": Garmin_API.CustomReply(f'Generate 1-5 follow up questions about the users log to further the understanding of the clients emotions, activities throughout the day and stress levels. Keep the questions engaging and brief. The users log : {text} .')})
+
 # Route for Gemini Based Garmin Watch Analysis
 @app.route("/analyze-Garmin", methods=["POST"])
 def analyze_Garmin():
