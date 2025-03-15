@@ -1,4 +1,68 @@
-.venv
-.aider*
-venv
+# Python & Flask
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+
+# Virtual environments
+**/.env/
+**/.venv/
+**/venv/
+**/env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Flask-specific
+**/instance/
+**/*.sqlite3
+**/*.db
+**/migrations/
+
+# Log files
+**/logs/
+**/*.log
+**/*.out
+**/*.err
+
+# Jupyter Notebooks
+**/.ipynb_checkpoints/
+
+# VS Code settings
+**/.vscode/
+*.code-workspace
+
+# Node.js dependencies (ignores `node_modules` everywhere)
+**/node_modules/
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/.env.test
+.DS_Store
+
+# Compiled files
+**/dist/
+**/build/
+**/public/
+
+# Python packaging
+**/*.egg-info/
+**/*.egg/
+**/*.whl
+MANIFEST
+
+# Git & Editor files
+**/.git/
+.gitignore
+**/.idea/
+**/*.swp
+**/*.swo
+**/*.bak
+
+# System files
+Thumbs.db
 .DS_Store
