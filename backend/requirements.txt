@@ -6,3 +6,6 @@ librosa==0.10.0
 numpy==1.23.5
 python-dotenv==0.21.0
 opensmile==2.5.1
+joblib
+scikit-learn
+pandas
