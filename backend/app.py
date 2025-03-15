@@ -40,6 +40,38 @@ if not os.path.exists(JOURNAL_CSV_PATH):
         writer.writerow(["timestamp", "user_id", "content", "activities", "tone_analysis", "wellbeing_score"])
 
 
+@app.route("/api/wellbeing-scores-last-7-days", methods=["GET"])
+def get_wellbeing_scores_last_7_entries():
+    """
+    Endpoint to fetch the wellbeing scores for the last 7 entries.
+    """
+    try:
+        # Read the journal entries from the CSV file
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+        
+        # Get the last 7 entries
+        last_7_entries = entries[-7:]  # Slice the last 7 entries
+        
+        # Extract wellbeing scores for the last 7 entries
+        wellbeing_scores = []
+        for entry in last_7_entries:
+            wellbeing_scores.append({
+                "wellbeing_score": int(entry["wellbeing_score"]),
+                "date": entry["timestamp"]
+            })
+        
+        # If there are fewer than 7 entries, pad the response with 0s for missing entries
+        while len(wellbeing_scores) < 7:
+            wellbeing_scores.insert(0, {"wellbeing_score": 0, "date": "N/A"})
+        
+        # Return the wellbeing scores for the last 7 entries
+        return jsonify(wellbeing_scores), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/wellbeing-score", methods=["GET"])
 def get_wellbeing_score():
     """

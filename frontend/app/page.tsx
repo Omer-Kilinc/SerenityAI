@@ -14,8 +14,8 @@ import { useEffect } from "react"
 export default function Dashboard() {
   // Mock data - would be replaced with actual data from your backend
   const [wellbeingScore, setWellbeingScore] = useState(0)
-  const [sleepScore, setSleepScore] = useState(85)
-  const [activityScore, setActivityScore] = useState(62)
+  const [sleepScore, setSleepScore] = useState(0)
+  const [stressScore, setStressScore] = useState(0)
   const [moodDistribution, setMoodDistribution] = useState({
     positive: 65,
     neutral: 25,
@@ -28,16 +28,15 @@ export default function Dashboard() {
     "Morning journaling seems to set a positive tone for your day",
   ])
 
-  // Mock weekly mood data
-  const weeklyMood = [
-    { day: "Mon", score: 75 },
-    { day: "Tue", score: 82 },
-    { day: "Wed", score: 68 },
-    { day: "Thu", score: 90 },
-    { day: "Fri", score: 85 },
-    { day: "Sat", score: 72 },
-    { day: "Sun", score: 78 },    
-  ]
+  const [weeklyWellbeingScores, setWeeklyWellbeingScores] = useState([
+    { day: "Mon", score: 0 },
+    { day: "Tue", score: 0 },
+    { day: "Wed", score: 0 },
+    { day: "Thu", score: 0 },
+    { day: "Fri", score: 0 },
+    { day: "Sat", score: 0 },
+    { day: "Sun", score: 0 },
+  ]);
 
   useEffect(() => {
     // Fetch the wellbeing score from the backend
@@ -54,6 +53,77 @@ export default function Dashboard() {
 
     fetchWellbeingScore()
   }, [])  // Empty dependency array ensures this runs only once on mount
+
+  useEffect(() => {
+    const fetchSleepData = async () => {
+      try {
+        const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
+          requestType: 1,  // Request sleep data
+        })
+        const data = response.data
+  
+        // Extract the sleep score from the response
+        const sleepScore = data.Sleep[0].sleepScore
+        setSleepScore(sleepScore)  // Update the state with the fetched sleep score
+      } catch (error) {
+        console.error("Error fetching sleep data:", error)
+        setSleepScore(0)  // Fallback to 0 if there's an error
+      }
+    }
+  
+    fetchSleepData()
+  }, [])
+
+  useEffect(() => {
+    const fetchStressData = async () => {
+      try {
+        const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
+          requestType: 4,  // Request activity data
+        });
+        const data = response.data;
+  
+        // Extract the activity score from the response
+        const stressScore = data["Stress Level"][0]; // Adjust based on the actual response structure
+        setStressScore(stressScore);  // Update the state with the fetched activity score
+      } catch (error) {
+        console.error("Error fetching activity data:", error);
+        setStressScore(0);  // Fallback to 0 if there's an error
+      }
+    };
+  
+    fetchStressData();
+  }, []);
+
+  useEffect(() => {
+    const fetchWeeklyWellbeingScores = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:5000/api/wellbeing-scores-last-7-days");
+        const data = response.data;
+
+        // Map the fetched data to the weeklyWellbeingScores state
+        const updatedScores = data.map((score, index) => ({
+          day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index], // Map days to the fetched data
+          score: score.wellbeing_score,
+        }));
+
+        setWeeklyWellbeingScores(updatedScores);
+      } catch (error) {
+        console.error("Error fetching weekly wellbeing scores:", error);
+        // Fallback to default values if there's an error
+        setWeeklyWellbeingScores([
+          { day: "Mon", score: 0 },
+          { day: "Tue", score: 0 },
+          { day: "Wed", score: 0 },
+          { day: "Thu", score: 0 },
+          { day: "Fri", score: 0 },
+          { day: "Sat", score: 0 },
+          { day: "Sun", score: 0 },
+        ]);
+      }
+    };
+
+    fetchWeeklyWellbeingScores();
+  }, []);
 
   return (
     <Layout>
@@ -90,12 +160,12 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Activity Level</CardTitle>
+              <CardTitle className="text-sm font-medium">Stress Level</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activityScore}/100</div>
-              <Progress value={activityScore} className="mt-2" />
+              <div className="text-2xl font-bold">{stressScore}/100</div>
+              <Progress value={stressScore} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-2">8,500 steps daily average</p>
             </CardContent>
           </Card>
@@ -109,7 +179,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="h-[200px] flex items-end justify-between">
-                {weeklyMood.map((day, i) => (
+                {weeklyWellbeingScores.map((day, i) => (
                   <div key={i} className="flex flex-col items-center gap-2">
                     <div
                       className="w-12 bg-primary rounded-t-md transition-all duration-500 ease-in-out"
