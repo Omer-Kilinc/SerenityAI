@@ -11,7 +11,6 @@ from utils.hatman_model import classify_audio
 from utils.emotion_utils import combine_results, LABEL_MAPPING
 from utils.transcription import transcribe_audio
 from utils.activity_detector import extract_activities
-#from utils.opensmile_analysis import analyze_voice_tone
 import Garmin_API
 from google import genai
 import csv
@@ -23,7 +22,6 @@ load_dotenv()
 app = Flask(__name__)
 
 # Load AI model for text-based emotion detection
-
 emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
 
 # Ensure the data directory exists
@@ -37,37 +35,128 @@ JOURNAL_CSV_PATH = os.path.join(DATA_DIR, 'journal_entries.csv')
 if not os.path.exists(JOURNAL_CSV_PATH):
     with open(JOURNAL_CSV_PATH, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["timestamp", "user_id", "journal_entry"])
+        writer.writerow(["timestamp", "user_id", "content", "activities", "tone_analysis", "wellbeing_score"])
+
+def calculate_wellbeing_score(emotions):
+    """Calculate wellbeing score based on emotions."""
+    wellbeing_score = 50
+    if emotions:
+        wellbeing_score += (
+            (emotions.get("joy", 0) * 50) +
+            (emotions.get("love", 0) * 20) +
+            (emotions.get("surprise", 0) * 10) -
+            (emotions.get("sadness", 0) * 30) -
+            (emotions.get("anger", 0) * 25) -
+            (emotions.get("fear", 0) * 20)
+        )
+        wellbeing_score = max(0, min(100, round(wellbeing_score)))
+    return wellbeing_score
+
+def analyze_emotions(text):
+    """Analyze emotions from text and return the results."""
+    sentences = re.split(r'(?<=[.!?]) +', text)  # Splitting text into sentences
+    emotion_totals = {}
+    sentence_count = 0
+
+    for sentence in sentences:
+        results = emotion_pipeline(sentence)[0]
+
+        if not emotion_totals:
+            emotion_totals = {result['label']: 0 for result in results}
+
+        for result in results:
+            emotion_totals[result['label']] += result['score']
+
+        sentence_count += 1
+
+    averaged_emotions = {emotion: round(score / sentence_count, 4) for emotion, score in emotion_totals.items()} if sentence_count > 0 else {}
+    top_emotion = max(averaged_emotions, key=averaged_emotions.get) if averaged_emotions else None
+
+    wellbeing_score = calculate_wellbeing_score(averaged_emotions)
+
+    return {
+        "averaged_emotions": averaged_emotions,
+        "top_emotion": top_emotion,
+        "wellbeing_score": wellbeing_score
+    }
 
 @app.route("/save-journal-entry", methods=["POST"])
 def save_journal_entry():
     # Get data from the request
     data = request.json
-    if not data or "user_id" not in data or "journal_entry" not in data:
-        return jsonify({"error": "Missing 'user_id' or 'journal_entry' in request"}), 400
+    if not data or "user_id" not in data:
+        return jsonify({"error": "Missing 'user_id' in request"}), 400
     
-    # Extract fields
     user_id = data["user_id"]
-    journal_entry = data["journal_entry"]
     timestamp = datetime.now().isoformat()  # Current timestamp in ISO format
 
-    # Extract activities from the journal entry
-    activities = extract_activities(journal_entry)
+    # Handle voice journal entry
+    if "audio" in request.files:
+        audio_file = request.files["audio"]
+        audio_path = "temp_audio.wav"
+        audio_file.save(audio_path)
+
+        try:
+            # Perform transcription
+            transcription = transcribe_audio(audio_path)
+            
+            # Perform tone analysis
+            tone_analysis = analyze_voice_tone(audio_path)
+            
+            # Perform emotion analysis on transcribed text
+            emotion_results = analyze_emotions(transcription)
+            wellbeing_score = calculate_wellbeing_score(emotion_results["averaged_emotions"])
+            
+            # Extract activities from the transcribed text
+            activities = extract_activities(transcription)
+            
+            # Append the entry to the CSV file
+            with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([timestamp, user_id, transcription, ", ".join(activities), str(tone_analysis), wellbeing_score])
+            
+            return jsonify({
+                "message": "Voice journal entry saved successfully",
+                "transcription": transcription,
+                "tone_analysis": tone_analysis,
+                "emotion_analysis": emotion_results,
+                "wellbeing_score": wellbeing_score,
+                "identified_activities": activities
+            }), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        finally:
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
     
-    # Append the entry to the CSV file
-    try:
-        with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([timestamp, user_id, journal_entry, ", ".join(activities)])
+    # Handle text journal entry
+    elif "journal_entry" in data:
+        journal_entry = data["journal_entry"]
         
-        return jsonify({
-            "message": "Journal entry saved successfully",
-            "identified_activities": activities
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
+        try:
+            # Perform emotion analysis on text
+            emotion_results = analyze_emotions(journal_entry)
+            wellbeing_score = calculate_wellbeing_score(emotion_results["averaged_emotions"])
+            
+            # Extract activities from the text
+            activities = extract_activities(journal_entry)
+            
+            # Append the entry to the CSV file
+            with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([timestamp, user_id, journal_entry, ", ".join(activities), "", wellbeing_score])
+            
+            return jsonify({
+                "message": "Text journal entry saved successfully",
+                "emotion_analysis": emotion_results,
+                "wellbeing_score": wellbeing_score,
+                "identified_activities": activities
+            }), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    else:
+        return jsonify({"error": "Missing 'audio' or 'journal_entry' in request"}), 400
 
 # Gemini Handling For Custom Querys
 def GeminiCustom(query):
@@ -87,46 +176,9 @@ def analyze_text_emotions():
         return jsonify({"error": "Missing 'text' field"}), 400
     
     text = data["text"]
-    sentences = re.split(r'(?<=[.!?]) +', text)  # Splitting text into sentences
-    emotion_totals = {}
-    sentence_count = 0
-
-    for sentence in sentences:
-        results = emotion_pipeline(sentence)[0]
-
-        if not emotion_totals:
-            emotion_totals = {result['label']: 0 for result in results}
-
-        for result in results:
-            emotion_totals[result['label']] += result['score']
-
-        sentence_count += 1
-
-    averaged_emotions = {emotion: round(score / sentence_count, 4) for emotion, score in emotion_totals.items()} if sentence_count > 0 else {}
-    top_emotion = max(averaged_emotions, key=averaged_emotions.get) if averaged_emotions else None
-
-    wellbeing_score = 50
-    if averaged_emotions:
-        wellbeing_score += (
-            (averaged_emotions.get("joy", 0) * 50) +
-            (averaged_emotions.get("love", 0) * 20) +
-            (averaged_emotions.get("surprise", 0) * 10) -
-            (averaged_emotions.get("sadness", 0) * 30) -
-            (averaged_emotions.get("anger", 0) * 25) -
-            (averaged_emotions.get("fear", 0) * 20)
-        )
-        wellbeing_score = max(0, min(100, round(wellbeing_score)))
+    emotion_results = analyze_emotions(text)
     
-    return jsonify({
-        "averaged_emotions": averaged_emotions,
-        "top_emotion": top_emotion,
-        "wellbeing_score": wellbeing_score,
-        "Generated Questions": GeminiCustom(f'Generate 1-5 goals for the user to improve their wellbeing score and have a better day tomorrow. The users log : {text} .')
-    }), 200
-
-
-    
- 
+    return jsonify({"emotion_analysis": emotion_results})
 
 # Route for analyzing voice
 @app.route("/analyze-voice", methods=["POST"])
@@ -184,7 +236,6 @@ def generateQuestions():
 # Route for Gemini Based Garmin Watch Analysis
 @app.route("/analyze-Garmin", methods=["POST"])
 def analyze_Garmin():
-
     data = request.json   # json should be {'requestType' : int , 'Custom' : 'somestring'}
 
     if data['requestType'] == 1:
@@ -204,8 +255,59 @@ def analyze_Garmin():
             return jsonify({'Custom': GeminiCustom(data['Custom Query'])})
         else:
             return jsonify({'Error': 'No String Provided For Query'})
+
+@app.route("/analyze-activity-impact", methods=["POST"])
+def analyze_activity_impact():
+    try:
+        # Read the journal entries from the CSV file
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+        
+        # Calculate the baseline wellbeing score (average across all days)
+        total_wellbeing = 0
+        num_entries = len(entries)
+        for entry in entries:
+            total_wellbeing += float(entry["wellbeing_score"])
+        baseline_wellbeing = total_wellbeing / num_entries if num_entries > 0 else 0
+        
+        # Create a dictionary to store activity impact data
+        activity_impact = {}
+        
+        # Process each entry
+        for entry in entries:
+            activities = entry["activities"].split(", ") if entry["activities"] else []
+            wellbeing_score = float(entry["wellbeing_score"])
             
-    
+            for activity in activities:
+                if activity not in activity_impact:
+                    activity_impact[activity] = {
+                        "total_score": 0,
+                        "count": 0
+                    }
+                activity_impact[activity]["total_score"] += wellbeing_score
+                activity_impact[activity]["count"] += 1
+        
+        # Calculate the impact multiplier for each activity
+        ranked_activities = []
+        for activity, data in activity_impact.items():
+            average_wellbeing = data["total_score"] / data["count"]
+            impact_multiplier = average_wellbeing / baseline_wellbeing if baseline_wellbeing != 0 else 1
+            ranked_activities.append({
+                "activity": activity,
+                "impact_multiplier": round(impact_multiplier, 2)
+            })
+        
+        # Sort activities by impact multiplier (from highest to lowest)
+        ranked_activities.sort(key=lambda x: x["impact_multiplier"], reverse=True)
+        
+        return jsonify({
+            "baseline_wellbeing": round(baseline_wellbeing, 2),
+            "ranked_activities": ranked_activities
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True)
