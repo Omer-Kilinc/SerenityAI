@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 # Load AI model for text-based emotion detection
 print("Loading AI model for sentence-by-sentence emotion analysis...")
-emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", return_all_scores=True)
+emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
 
 # Function to split text into sentences (without using NLTK)
 def split_sentences(text):
@@ -38,7 +38,22 @@ def analyze_text_emotions(text):
         sentence_count += 1
 
     averaged_emotions = {emotion: round(score / sentence_count, 4) for emotion, score in emotion_totals.items()} if sentence_count > 0 else {}
-    return averaged_emotions
+    top_emotion = max(averaged_emotions, key=averaged_emotions.get) if averaged_emotions else None
+
+    wellbeing_score = 50
+    if averaged_emotions:
+        wellbeing_score += (
+            (averaged_emotions.get("joy", 0) * 50) +
+            (averaged_emotions.get("love", 0) * 20) +
+            (averaged_emotions.get("surprise", 0) * 10) -
+            (averaged_emotions.get("sadness", 0) * 30) -
+            (averaged_emotions.get("anger", 0) * 25) -
+            (averaged_emotions.get("fear", 0) * 20)
+        )
+        wellbeing_score = max(0, min(100, round(wellbeing_score)))
+    
+    return averaged_emotions, top_emotion, wellbeing_score
+ 
 
 # Route for analyzing voice
 @app.route("/analyze-voice", methods=["POST"])

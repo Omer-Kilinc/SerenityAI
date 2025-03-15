@@ -9,3 +9,4 @@ opensmile==2.5.1
 joblib
 scikit-learn
 pandas
+transformers
