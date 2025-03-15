@@ -70,12 +70,16 @@ def analyze_text_emotions():
             (averaged_emotions.get("fear", 0) * 20)
         )
         wellbeing_score = max(0, min(100, round(wellbeing_score)))
-
+    
     return jsonify({
         "averaged_emotions": averaged_emotions,
         "top_emotion": top_emotion,
-        "wellbeing_score": wellbeing_score
+        "wellbeing_score": wellbeing_score,
+        "Generated Questions": GeminiCustom(f'Generate 1-5 goals for the user to improve their wellbeing score and have a better day tomorrow. The users log : {text} .')
     }), 200
+
+
+    
  
 
 # Route for analyzing voice
