@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from transformers import pipeline
 from utils.transcription import transcribe_audio
 from utils.opensmile_analysis import analyze_voice_tone
+import Garmin_API
 
 # Load environment variables
 load_dotenv()
@@ -102,6 +103,31 @@ def analyze_text():
     
     return jsonify({"emotion_analysis": emotion_results})
 
+# Route for Gemini Based Garmin Watch Analysis
+@app.route("/analyze-Garmin", methods=["POST"])
+def analyze_Garmin():
+
+    data = request.json   # json should be {'requestType' : int , 'Custom' : 'somestring'}
+
+    if data['requestType'] == 1:
+        return jsonify({'Sleep' : Garmin_API.GetSleepReply()})
+    
+    elif data['requestType'] == 2:
+        return jsonify({'Heart Rate' : Garmin_API.GetBPMReply()})
+    
+    elif data['requestType'] == 3:
+        return jsonify({'Activity' : Garmin_API.GetActivityReply()})
+    
+    elif data['requestType'] == 4:
+        return jsonify({'Stress Level' : Garmin_API.GetStressReply()})
+    
+    else:
+        if data['Custom Query'] != '' :
+            return jsonify({'Custom': Garmin_API.CustomReply(data['Custom Query'])})
+        else:
+            return jsonify({'Error': 'No String Provided For Query'})
+            
+    
 # Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True)
