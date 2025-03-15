@@ -1,0 +1,4 @@
+timestamp,user_id,journal_entry
+2025-03-15T16:46:07.160670,12345,Today I went running and then attended a book club meeting.,running
+2025-03-15T16:47:35.785401,12345,Today I went running and then attended a book club meeting. I played football. I had a great day,"played football, running"
+2025-03-15T16:48:00.631811,12345,Today I went running and then attended a book club meeting. I played football. I had a great day,"played football, running"

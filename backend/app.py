@@ -10,9 +10,12 @@ from utils.opensmile_analysis import extract_opensmile_features, predict_emotion
 from utils.hatman_model import classify_audio
 from utils.emotion_utils import combine_results, LABEL_MAPPING
 from utils.transcription import transcribe_audio
+from utils.activity_detector import extract_activities
 #from utils.opensmile_analysis import analyze_voice_tone
 import Garmin_API
 from google import genai
+import csv
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +25,49 @@ app = Flask(__name__)
 # Load AI model for text-based emotion detection
 
 emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
+
+# Ensure the data directory exists
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Path to the CSV file
+JOURNAL_CSV_PATH = os.path.join(DATA_DIR, 'journal_entries.csv')
+
+# Create the CSV file with headers if it doesn't exist
+if not os.path.exists(JOURNAL_CSV_PATH):
+    with open(JOURNAL_CSV_PATH, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["timestamp", "user_id", "journal_entry"])
+
+@app.route("/save-journal-entry", methods=["POST"])
+def save_journal_entry():
+    # Get data from the request
+    data = request.json
+    if not data or "user_id" not in data or "journal_entry" not in data:
+        return jsonify({"error": "Missing 'user_id' or 'journal_entry' in request"}), 400
+    
+    # Extract fields
+    user_id = data["user_id"]
+    journal_entry = data["journal_entry"]
+    timestamp = datetime.now().isoformat()  # Current timestamp in ISO format
+
+    # Extract activities from the journal entry
+    activities = extract_activities(journal_entry)
+    
+    # Append the entry to the CSV file
+    try:
+        with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([timestamp, user_id, journal_entry, ", ".join(activities)])
+        
+        return jsonify({
+            "message": "Journal entry saved successfully",
+            "identified_activities": activities
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 # Gemini Handling For Custom Querys
 def GeminiCustom(query):
