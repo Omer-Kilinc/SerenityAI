@@ -14,8 +14,8 @@ import { useEffect } from "react"
 export default function Dashboard() {
   // Mock data - would be replaced with actual data from your backend
   const [wellbeingScore, setWellbeingScore] = useState(0)
-  const [sleepScore, setSleepScore] = useState(0)
-  const [stressScore, setStressScore] = useState(0)
+  const [sleepScore, setSleepScore] = useState(71)
+  const [stressScore, setStressScore] = useState(68)
   const [moodDistribution, setMoodDistribution] = useState({
     positive: 65,
     neutral: 25,
@@ -54,7 +54,8 @@ export default function Dashboard() {
     fetchWellbeingScore()
   }, [])  // Empty dependency array ensures this runs only once on mount
 
-  useEffect(() => {
+  
+ /*  useEffect(() => {
     const fetchSleepData = async () => {
       try {
         const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
@@ -72,9 +73,9 @@ export default function Dashboard() {
     }
   
     fetchSleepData()
-  }, [])
+  }, [])  */
 
-  useEffect(() => {
+/*   useEffect(() => {
     const fetchStressData = async () => {
       try {
         const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
@@ -92,7 +93,7 @@ export default function Dashboard() {
     };
   
     fetchStressData();
-  }, []);
+  }, []); */
 
   useEffect(() => {
     const fetchWeeklyWellbeingScores = async () => {

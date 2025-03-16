@@ -14,8 +14,8 @@ garmin = Garmin(username, password)
 garmin.login()
 
 #Todays Date as String
-Date = datetime.today().strftime('%Y-%m-%d') # %Y = 2025   %y = 25
-
+#Date = datetime.today().strftime('%Y-%m-%d') # %Y = 2025   %y = 25
+Date = '2025-03-15'
 
 def GetSleepReply() :
     # Gathers and Filters Useful Garmin Watch Data For A Certain Date (Present Day)
@@ -25,12 +25,12 @@ def GetSleepReply() :
     SleepData['sleepScore'] = garminData['dailySleepDTO']['sleepScores']['overall']['value']
 
     #Generates Responses and Help From Gemini Using Garmin Data
-    responseSleep = client.models.generate_content(
-        model = 'gemini-2.0-pro-exp-02-05', 
-        contents = f"The Garmin Watch user {username} recorded sleeping data for their last sleep session. The user's sleep data is the following : {SleepData}. Provide feedback on the quality of sleep of the user, as well as how beneficial it may be to go to sleep and wake up at consistent times and how to achieve this. Also comment on the sleep data and use said data in your response to provide further analysis and understanding. Finally, reccomend ideas and techniques to improve quality of sleep the next time around. Make sure that the data taken straight from the variable provided is formatted to be easily readable and understandable (instead of 3600 seconds for example write 60 hours). Make sure that the response is no longer than 350 words in total. Use emojis and kaomoji to improve mood and emotiveness of the response. Additionally use this data to comment briefly on any notable levels of stress you can infer.")
+    #responseSleep = client.models.generate_content(
+    #    model = 'gemini-2.0-pro-exp-02-05', 
+    #    contents = f"The Garmin Watch user {username} recorded sleeping data for their last sleep session. The user's sleep data is the following : {SleepData}. Provide feedback on the quality of sleep of the user, as well as how beneficial it may be to go to sleep and wake up at consistent times and how to achieve this. Also comment on the sleep data and use said data in your response to provide further analysis and understanding. Finally, reccomend ideas and techniques to improve quality of sleep the next time around. Make sure that the data taken straight from the variable provided is formatted to be easily readable and understandable (instead of 3600 seconds for example write 60 hours). Make sure that the response is no longer than 350 words in total. Use emojis and kaomoji to improve mood and emotiveness of the response. Additionally use this data to comment briefly on any notable levels of stress you can infer.")
 
     # Presents The Gathered Data and Google Gemini Responses
-    return (SleepData, responseSleep.text)
+    return (SleepData)
 
 def GetBPMReply() :
     # Gathers and Filters Useful Garmin Watch Data For A Certain Date (Present Day)
