@@ -1,298 +1,343 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Mic, MicOff, Send, Loader2, Image, Paperclip, Smile } from "lucide-react"
+import { useState } from "react"
+import { Activity, Moon, Zap, Smile, Frown, Meh, ArrowRight } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Progress } from "@/components/ui/progress"
 import Layout from "@/components/layout"
+import Link from "next/link"
+import axios from "axios"
+import { useEffect } from "react"
 
-// Mock prompts to help users journal
-const journalPrompts = [
-  "How would you describe your day today?",
-  "What made you smile today?",
-  "Did you face any challenges? How did you handle them?",
-  "What are you grateful for today?",
-  "How did you take care of yourself today?",
-  "What's something you learned today?",
-  "How are you feeling physically right now?",
-  "What's something you're looking forward to?",
-]
 
-export default function JournalPage() {
-  const [journalText, setJournalText] = useState("")
-  const [isRecording, setIsRecording] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [currentPrompt, setCurrentPrompt] = useState(journalPrompts[0])
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([])
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+export default function Dashboard() {
+  // Mock data - would be replaced with actual data from your backend
+  const [wellbeingScore, setWellbeingScore] = useState(0)
+  const [sleepScore, setSleepScore] = useState(0)
+  const [stressScore, setStressScore] = useState(0)
+  const [moodDistribution, setMoodDistribution] = useState({
+    positive: 65,
+    neutral: 25,
+    negative: 10,
+  })
+  const [insights, setInsights] = useState([
+    "Your mood tends to improve after physical activity",
+    "You've been consistently journaling for 7 days",
+    "Your sleep quality correlates with positive mood entries",
+    "Morning journaling seems to set a positive tone for your day",
+  ])
 
-  // Initialize the MediaRecorder
+  const [weeklyWellbeingScores, setWeeklyWellbeingScores] = useState([
+    { day: "Mon", score: 0 },
+    { day: "Tue", score: 0 },
+    { day: "Wed", score: 0 },
+    { day: "Thu", score: 0 },
+    { day: "Fri", score: 0 },
+    { day: "Sat", score: 0 },
+    { day: "Sun", score: 0 },
+  ]);
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        const recorder = new MediaRecorder(stream)
-        setMediaRecorder(recorder)
-
-        recorder.ondataavailable = (event) => {
-          setAudioChunks((prev) => [...prev, event.data])
-        }
-      })
-    }
-  }, [])
-
-  // Function to handle voice recording
-  const toggleRecording = async () => {
-    if (!mediaRecorder) return
-
-    if (!isRecording) {
-      // Start recording
-      setAudioChunks([])
-      mediaRecorder.start()
-      setIsRecording(true)
-    } else {
-      // Stop recording
-      mediaRecorder.stop()
-      setIsRecording(false)
-
-      // Create a Blob from the recorded chunks
-      const audioBlob = new Blob(audioChunks, { type: "audio/wav" })
-      const audioFile = new File([audioBlob], "recording.wav", { type: "audio/wav" })
-
-      // Prepare the form data to send to the backend
-      const formData = new FormData()
-      formData.append("user_id", "12345") // Replace with the actual user ID
-      formData.append("audio", audioFile)
-
+    // Fetch the wellbeing score from the backend
+    const fetchWellbeingScore = async () => {
       try {
-        // Send the audio file to the backend
-        const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
-          method: "POST",
-          body: formData,
-        })
-
-        if (!response.ok) {
-          throw new Error("Failed to save voice journal entry")
-        }
-
-        const result = await response.json()
-
-        // Handle the response from the backend
-        console.log("Voice journal entry saved successfully:", result)
-        setJournalText(result.transcription) // Update the textarea with the transcription
-        alert("Voice journal entry submitted successfully!")
+        const response = await axios.get("http://127.0.0.1:5000/api/wellbeing-score")
+        const data = response.data
+        setWellbeingScore(data.wellbeing_score)  // Update the state with the fetched score
       } catch (error) {
-        console.error("Error submitting voice journal entry:", error)
-        alert("Failed to submit voice journal entry. Please try again.")
+        console.error("Error fetching wellbeing score:", error)
+        setWellbeingScore(0)  // Fallback to 0 if there's an error
       }
     }
-  }
 
-  // Function to handle journal submission
-  const handleSubmit = async () => {
-    if (!journalText.trim()) return
+    fetchWellbeingScore()
+  }, [])  // Empty dependency array ensures this runs only once on mount
 
-    setIsSubmitting(true)
-
-    try {
-      // Prepare the data to send to the backend
-      const payload = {
-        user_id: "12345", // Replace with the actual user ID or fetch from auth context
-        journal_entry: journalText, // Send the journal text
-      }
-
-      // Send the journal entry to the backend
-      const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to save journal entry")
-      }
-
-      const result = await response.json()
-
-      // Handle the response from the backend
-      console.log("Journal entry saved successfully:", result)
-      alert("Journal entry submitted successfully!")
-
-      // Reset the form
-      setJournalText("")
-    } catch (error) {
-      console.error("Error submitting journal entry:", error)
-      alert("Failed to submit journal entry. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // Function to select a random prompt
-  const getRandomPrompt = () => {
-    const newPrompt = journalPrompts[Math.floor(Math.random() * journalPrompts.length)]
-    setCurrentPrompt(newPrompt)
-  }
-
-  // Focus textarea on load
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus()
+    const fetchSleepData = async () => {
+      try {
+        const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
+          requestType: 1,  // Request sleep data
+        })
+        const data = response.data
+  
+        // Extract the sleep score from the response
+        const sleepScore = data.Sleep[0].sleepScore
+        setSleepScore(sleepScore)  // Update the state with the fetched sleep score
+      } catch (error) {
+        console.error("Error fetching sleep data:", error)
+        setSleepScore(0)  // Fallback to 0 if there's an error
+      }
     }
+  
+    fetchSleepData()
   }, [])
+
+  useEffect(() => {
+    const fetchStressData = async () => {
+      try {
+        const response = await axios.post("http://127.0.0.1:5000/analyze-Garmin", {
+          requestType: 4,  // Request activity data
+        });
+        const data = response.data;
+  
+        // Extract the activity score from the response
+        const stressScore = data["Stress Level"][0]; // Adjust based on the actual response structure
+        setStressScore(stressScore);  // Update the state with the fetched activity score
+      } catch (error) {
+        console.error("Error fetching activity data:", error);
+        setStressScore(0);  // Fallback to 0 if there's an error
+      }
+    };
+  
+    fetchStressData();
+  }, []);
+
+  useEffect(() => {
+    const fetchWeeklyWellbeingScores = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:5000/api/wellbeing-scores-last-7-days");
+        const data = response.data;
+
+        // Map the fetched data to the weeklyWellbeingScores state
+        const updatedScores = data.map((score, index) => ({
+          day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index], // Map days to the fetched data
+          score: score.wellbeing_score,
+        }));
+
+        setWeeklyWellbeingScores(updatedScores);
+      } catch (error) {
+        console.error("Error fetching weekly wellbeing scores:", error);
+        // Fallback to default values if there's an error
+        setWeeklyWellbeingScores([
+          { day: "Mon", score: 0 },
+          { day: "Tue", score: 0 },
+          { day: "Wed", score: 0 },
+          { day: "Thu", score: 0 },
+          { day: "Fri", score: 0 },
+          { day: "Sat", score: 0 },
+          { day: "Sun", score: 0 },
+        ]);
+      }
+    };
+
+    fetchWeeklyWellbeingScores();
+  }, []);
 
   return (
     <Layout>
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">New Journal Entry</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Welcome back, Erin</h1>
         <p className="text-muted-foreground">
-          Express your thoughts, feelings, and experiences. Your entries help SerenityAI understand your wellbeing.
+          Here's an overview of your wellbeing and insights from your journal entries.
         </p>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Wellbeing Score</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{wellbeingScore}/100</div>
+              <Progress value={wellbeingScore} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-2">+5% from last week</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Sleep Quality</CardTitle>
+              <Moon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{sleepScore}/100</div>
+              <Progress value={sleepScore} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-2">7.5 hours avg. duration</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Stress Level</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stressScore}/100</div>
+              <Progress value={stressScore} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-2">8,500 steps daily average</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Weekly Mood Trends</CardTitle>
+              <CardDescription>Your emotional patterns over the past week</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[200px] flex items-end justify-between">
+                {weeklyWellbeingScores.map((day, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div
+                      className="w-12 bg-primary rounded-t-md transition-all duration-500 ease-in-out"
+                      style={{ height: `${day.score * 1.5}px` }}
+                    ></div>
+                    <span className="text-xs font-medium">{day.day}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Your mood has been generally positive this week</p>
+            </CardFooter>
+          </Card>
+
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Mood Distribution</CardTitle>
+              <CardDescription>Breakdown of your emotional states</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Smile className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium">Positive</span>
+                    </div>
+                    <span className="text-sm font-medium">{moodDistribution.positive}%</span>
+                  </div>
+                  <Progress value={moodDistribution.positive} className="h-2 bg-muted" indicatorColor="bg-green-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Meh className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm font-medium">Neutral</span>
+                    </div>
+                    <span className="text-sm font-medium">{moodDistribution.neutral}%</span>
+                  </div>
+                  <Progress value={moodDistribution.neutral} className="h-2 bg-muted" indicatorColor="bg-amber-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Frown className="h-4 w-4 text-red-500" />
+                      <span className="text-sm font-medium">Negative</span>
+                    </div>
+                    <span className="text-sm font-medium">{moodDistribution.negative}%</span>
+                  </div>
+                  <Progress value={moodDistribution.negative} className="h-2 bg-muted" indicatorColor="bg-red-500" />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Based on sentiment analysis of your journal entries</p>
+            </CardFooter>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Today's Journal</CardTitle>
-            <CardDescription>
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </CardDescription>
+            <CardTitle>AI Insights</CardTitle>
+            <CardDescription>Personalized observations based on your journaling patterns</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="write">
-              <TabsList className="mb-4">
-                <TabsTrigger value="write">Write</TabsTrigger>
-                <TabsTrigger value="prompt">Use Prompt</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="write" className="space-y-4">
-                <Textarea
-                  ref={textareaRef}
-                  placeholder="How are you feeling today? What's on your mind?"
-                  className="min-h-[200px] resize-none"
-                  value={journalText}
-                  onChange={(e) => setJournalText(e.target.value)}
-                />
-              </TabsContent>
-
-              <TabsContent value="prompt" className="space-y-4">
-                <div className="bg-muted p-4 rounded-md mb-4">
-                  <p className="font-medium mb-2">Prompt:</p>
-                  <p>{currentPrompt}</p>
-                  <Button variant="outline" size="sm" onClick={getRandomPrompt} className="mt-2">
-                    Try Another Prompt
-                  </Button>
-                </div>
-
-                <Textarea
-                  placeholder="Respond to the prompt..."
-                  className="min-h-[200px] resize-none"
-                  value={journalText}
-                  onChange={(e) => setJournalText(e.target.value)}
-                />
-              </TabsContent>
-            </Tabs>
-
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleRecording}
-                  className={isRecording ? "bg-red-100 text-red-500 animate-pulse" : ""}
-                >
-                  {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  {isRecording ? "Recording... Click to stop" : "Click to record your voice"}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon">
-                  <Image className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="icon">
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2">
-                    <div className="grid grid-cols-6 gap-2">
-                      {["😊", "😌", "😔", "😢", "😡", "😰", "🥰", "😴", "🤔", "😎", "🙂", "😕"].map((emoji, i) => (
-                        <button
-                          key={i}
-                          className="text-2xl hover:bg-muted p-2 rounded-md"
-                          onClick={() => setJournalText((prev) => prev + emoji)}
-                        >
-                          {emoji}
-                        </button>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
+            <ul className="space-y-4">
+              {insights.map((insight, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="mt-0.5 h-2 w-2 rounded-full bg-primary" />
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <p className="text-sm text-muted-foreground">{journalText.length} characters</p>
-            <Button onClick={handleSubmit} disabled={!journalText.trim() || isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Submit Journal
-                </>
-              )}
+          <CardFooter>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/journal">
+                Create New Journal Entry
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>How Journaling Helps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <h3 className="font-medium">Self-Reflection</h3>
-                <p className="text-sm text-muted-foreground">
-                  Regular journaling helps you understand your thoughts and emotions better.
-                </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Garmin Sleep Data</CardTitle>
+              <CardDescription>Your sleep patterns from Garmin</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Deep Sleep</p>
+                  <p className="text-sm text-muted-foreground">2h 15m</p>
+                </div>
+                <Progress value={45} className="w-1/2" />
               </div>
 
-              <div className="space-y-2">
-                <h3 className="font-medium">Stress Reduction</h3>
-                <p className="text-sm text-muted-foreground">
-                  Writing about your feelings can help reduce stress and anxiety.
-                </p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Light Sleep</p>
+                  <p className="text-sm text-muted-foreground">4h 30m</p>
+                </div>
+                <Progress value={70} className="w-1/2" />
               </div>
 
-              <div className="space-y-2">
-                <h3 className="font-medium">Personalized Insights</h3>
-                <p className="text-sm text-muted-foreground">
-                  SerenityAI analyzes your entries to provide tailored insights about your wellbeing patterns.
-                </p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">REM Sleep</p>
+                  <p className="text-sm text-muted-foreground">1h 45m</p>
+                </div>
+                <Progress value={35} className="w-1/2" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Last night's sleep quality: Good</p>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Garmin Activity Data</CardTitle>
+              <CardDescription>Your exercise metrics from Garmin</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Steps</p>
+                  <p className="text-sm text-muted-foreground">8,542 steps</p>
+                </div>
+                <Progress value={85} className="w-1/2" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Active Minutes</p>
+                  <p className="text-sm text-muted-foreground">45 minutes</p>
+                </div>
+                <Progress value={60} className="w-1/2" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Calories</p>
+                  <p className="text-sm text-muted-foreground">2,350 kcal</p>
+                </div>
+                <Progress value={78} className="w-1/2" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Today's activity level: Moderate</p>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     </Layout>
   )
