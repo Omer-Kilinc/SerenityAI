@@ -1,15 +1,20 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Mic, MicOff, Send, Loader2, Image, Paperclip, Smile } from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import Layout from "@/components/layout"
+import { useState, useRef, useEffect } from "react";
+import { Mic, MicOff, Send, Loader2, Image, Paperclip, Smile } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import Layout from "@/components/layout";
+import dynamic from "next/dynamic";
 
-// Mock prompts to help users journal
+// Dynamically import ReactMic with SSR disabled and extract the default export
+const ReactMic = dynamic(() => import("react-mic").then((mod) => mod.ReactMic), {
+  ssr: false,
+});
+
 const journalPrompts = [
   "How would you describe your day today?",
   "What made you smile today?",
@@ -19,75 +24,42 @@ const journalPrompts = [
   "What's something you learned today?",
   "How are you feeling physically right now?",
   "What's something you're looking forward to?",
-]
+];
 
 export default function JournalPage() {
-  const [journalText, setJournalText] = useState("")
-  const [isRecording, setIsRecording] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [currentPrompt, setCurrentPrompt] = useState(journalPrompts[0])
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [journalText, setJournalText] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPrompt, setCurrentPrompt] = useState(journalPrompts[0]);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Function to handle voice recording
-  const toggleRecording = async () => {
-    setIsRecording(!isRecording);
-
-    if (!isRecording) {
-      // Start recording (mock implementation)
-      const audioBlob = new Blob(["Simulated audio data"], { type: "audio/wav" }); // Replace with actual recording logic
-      const audioFile = new File([audioBlob], "recording.wav", { type: "audio/wav" });
-
-      try {
-        // Prepare the form data to send to the backend
-        const formData = new FormData();
-        formData.append("user_id", "12345"); // Replace with the actual user ID
-        formData.append("audio", audioFile);
-
-        // Send the audio file to the backend
-        const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to save voice journal entry");
-        }
-
-        const result = await response.json();
-
-        // Handle the response from the backend
-        console.log("Voice journal entry saved successfully:", result);
-        setJournalText(result.transcription); // Update the textarea with the transcription
-        alert("Voice journal entry submitted successfully!");
-      } catch (error) {
-        console.error("Error submitting voice journal entry:", error);
-        alert("Failed to submit voice journal entry. Please try again.");
-      } finally {
-        setIsRecording(false);
-      }
-    }
+  const onStop = (recordedBlob) => {
+    setAudioBlob(recordedBlob.blob);
   };
 
-  // Function to handle journal submission
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+  };
+
   const handleSubmit = async () => {
-    if (!journalText.trim()) return;
+    if (!journalText.trim() && !audioBlob) return;
 
     setIsSubmitting(true);
 
     try {
-      // Prepare the data to send to the backend
-      const payload = {
-        user_id: "12345", // Replace with the actual user ID or fetch from auth context
-        journal_entry: journalText, // Send the journal text
-      };
+      const formData = new FormData();
+      formData.append("user_id", "12345");
 
-      // Send the journal entry to the backend
+      if (audioBlob) {
+        formData.append("audio", audioBlob, "recording.wav");
+      } else {
+        formData.append("journal_entry", journalText);
+      }
+
       const response = await fetch("http://127.0.0.1:5000/save-journal-entry", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -95,13 +67,11 @@ export default function JournalPage() {
       }
 
       const result = await response.json();
-
-      // Handle the response from the backend
       console.log("Journal entry saved successfully:", result);
       alert("Journal entry submitted successfully!");
 
-      // Reset the form
       setJournalText("");
+      setAudioBlob(null);
     } catch (error) {
       console.error("Error submitting journal entry:", error);
       alert("Failed to submit journal entry. Please try again.");
@@ -110,18 +80,16 @@ export default function JournalPage() {
     }
   };
 
-  // Function to select a random prompt
   const getRandomPrompt = () => {
-    const newPrompt = journalPrompts[Math.floor(Math.random() * journalPrompts.length)]
-    setCurrentPrompt(newPrompt)
-  }
+    const newPrompt = journalPrompts[Math.floor(Math.random() * journalPrompts.length)];
+    setCurrentPrompt(newPrompt);
+  };
 
-  // Focus textarea on load
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.focus()
+      textareaRef.current.focus();
     }
-  }, [])
+  }, []);
 
   return (
     <Layout>
@@ -222,10 +190,20 @@ export default function JournalPage() {
                 </Popover>
               </div>
             </div>
+
+            {ReactMic && (
+              <ReactMic
+                record={isRecording}
+                className="sound-wave"
+                onStop={onStop}
+                strokeColor="#000000"
+                backgroundColor="#FFFFFF"
+              />
+            )}
           </CardContent>
           <CardFooter className="flex justify-between">
             <p className="text-sm text-muted-foreground">{journalText.length} characters</p>
-            <Button onClick={handleSubmit} disabled={!journalText.trim() || isSubmitting}>
+            <Button onClick={handleSubmit} disabled={(!journalText.trim() && !audioBlob) || isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -272,5 +250,5 @@ export default function JournalPage() {
         </Card>
       </div>
     </Layout>
-  )
+  );
 }

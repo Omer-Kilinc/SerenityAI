@@ -16,12 +16,24 @@ from google import genai
 import csv
 from datetime import datetime
 from flask_cors import CORS
+from transformers import GPTNeoForCausalLM, GPT2Tokenizer
+import logging
+from pydub import AudioSegment
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app) 
+
+# Load the GPT-Neo model and tokenizer
+model = GPTNeoForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B")
+tokenizer = GPT2Tokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B")
+tokenizer.pad_token = tokenizer.eos_token  # Set pad_token to eos_token
 
 # Load AI model for text-based emotion detection
 emotion_pipeline = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
@@ -40,6 +52,119 @@ if not os.path.exists(JOURNAL_CSV_PATH):
         writer.writerow(["timestamp", "user_id", "content", "activities", "tone_analysis", "wellbeing_score"])
 
 
+""" import openai
+
+# Set your OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+@app.route("/api/chat", methods=["POST"])
+def chat_with_llm():
+    try:
+        data = request.json
+        user_message = data.get("message", "")
+
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # Read journal entries
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+
+        # Create context
+        context = "Journal Entries:\n"
+        for entry in entries:
+            context += f"- {entry['timestamp']}: {entry['content']} (Activities: {entry['activities']})\n"
+
+        # Generate prompt
+        prompt = f"{context}\nUser: {user_message}\nSerenity AI: Based on your journal entries, yesterday you did the following activities:"
+
+        # Call OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # or "gpt-4"
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=100,
+            temperature=0.7,
+        )
+
+        # Extract the AI's response
+        ai_response = response['choices'][0]['message']['content'].strip()
+
+        return jsonify({"response": ai_response}), 200
+    except Exception as e:
+        logger.error(f"Error in chat_with_llm: {e}", exc_info=True)
+        return jsonify({
+            "error": "Sorry, I couldn't process your request. Please try again.",
+            "details": str(e)  # Include the error details for debugging
+        }), 500
+ """
+
+@app.route("/api/chat", methods=["POST"])
+def chat_with_llm():
+    try:
+        data = request.json
+        user_message = data.get("message", "")
+
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # Read journal entries
+        with open(JOURNAL_CSV_PATH, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            entries = list(reader)
+
+        # Create context
+        context = "Journal Entries:\n"
+        for entry in entries:
+            context += f"- {entry['timestamp']}: {entry['content']}\n"
+
+        # Generate prompt
+        prompt = f"{context}\nUser: {user_message}\nSerenity AI:"
+
+        # Tokenize input
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            max_length=512,
+            truncation=True,  # Explicitly enable truncation
+        )
+
+        # Generate response
+        outputs = model.generate(
+            inputs.input_ids,
+            attention_mask=inputs.attention_mask,  # Explicitly set attention_mask
+            max_new_tokens=100,  # Limit the response length
+            num_return_sequences=1,
+            temperature=0.7,  # Control randomness
+            top_p=0.9,  # Control diversity
+            top_k=50,  # Limit the sampling pool
+            no_repeat_ngram_size=3,  # Prevent repetition
+            early_stopping=True,
+            pad_token_id=tokenizer.eos_token_id,  # Explicitly set pad_token_id
+        )
+
+        # Decode response
+        ai_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        ai_response = ai_response.split("Serenity AI:")[-1].strip()
+
+        # Decode response
+        ai_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        ai_response = ai_response.split("Serenity AI:")[-1].strip()
+
+        # Remove any trailing user-like text
+        if "User" in ai_response:
+            ai_response = ai_response.split("User")[0].strip()
+
+        return jsonify({"response": ai_response}), 200
+    except Exception as e:
+        logger.error(f"Error in chat_with_llm: {e}", exc_info=True)
+        return jsonify({
+            "error": "Sorry, I couldn't process your request. Please try again.",
+            "details": str(e)  # Include the error details for debugging
+        }), 500
 @app.route("/api/wellbeing-scores-last-7-days", methods=["GET"])
 def get_wellbeing_scores_last_7_entries():
     """
@@ -166,39 +291,63 @@ def get_journal_entries():
 
 @app.route("/save-journal-entry", methods=["POST"])
 def save_journal_entry():
+    logger.debug("Received request to save journal entry")
+    
     # Get data from the request
-    data = request.json
+    data = request.form
     if not data or "user_id" not in data:
+        logger.error("Missing 'user_id' in request")
         return jsonify({"error": "Missing 'user_id' in request"}), 400
     
     user_id = data["user_id"]
     timestamp = datetime.now().isoformat()  # Current timestamp in ISO format
+    logger.debug(f"User ID: {user_id}, Timestamp: {timestamp}")
 
     # Handle voice journal entry
     if "audio" in request.files:
         audio_file = request.files["audio"]
         audio_path = "temp_audio.wav"
+        logger.debug(f"Saving audio file to {audio_path}")
         audio_file.save(audio_path)
 
         try:
-            # Perform transcription
+            # Validate the audio file
+            if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+                logger.error("Audio file is empty or not saved correctly")
+                return jsonify({"error": "Audio file is empty or not saved correctly"}), 400
+
+            # Convert the audio file to a supported format if necessary
+            try:
+                audio = AudioSegment.from_file(audio_path)
+                audio.export(audio_path, format="wav")  # Ensure it's in WAV format
+                logger.debug("Audio file converted to WAV format")
+            except Exception as e:
+                logger.error(f"Error converting audio file: {e}")
+                return jsonify({"error": "Failed to process audio file format"}), 400
+
+            logger.debug("Starting transcription")
             transcription = transcribe_audio(audio_path)
+            logger.debug(f"Transcription: {transcription}")
             
-            # Perform tone analysis
+            logger.debug("Starting tone analysis")
             tone_analysis = analyze_voice_tone(audio_path)
+            logger.debug(f"Tone Analysis: {tone_analysis}")
             
-            # Perform emotion analysis on transcribed text
+            logger.debug("Starting emotion analysis")
             emotion_results = analyze_emotions(transcription)
             wellbeing_score = calculate_wellbeing_score(emotion_results["averaged_emotions"])
+            logger.debug(f"Emotion Analysis: {emotion_results}, Wellbeing Score: {wellbeing_score}")
             
-            # Extract activities from the transcribed text
+            logger.debug("Extracting activities")
             activities = extract_activities(transcription)
+            logger.debug(f"Identified Activities: {activities}")
             
-            # Append the entry to the CSV file
+            logger.debug("Appending entry to CSV")
             with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([timestamp, user_id, transcription, ", ".join(activities), str(tone_analysis), wellbeing_score])
             
+            logger.debug("Voice journal entry saved successfully")
             return jsonify({
                 "message": "Voice journal entry saved successfully",
                 "transcription": transcription,
@@ -208,28 +357,34 @@ def save_journal_entry():
                 "identified_activities": activities
             }), 200
         except Exception as e:
+            logger.error(f"Error processing voice journal entry: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
         finally:
             if os.path.exists(audio_path):
+                logger.debug(f"Removing temporary audio file: {audio_path}")
                 os.remove(audio_path)
     
     # Handle text journal entry
     elif "journal_entry" in data:
         journal_entry = data["journal_entry"]
+        logger.debug(f"Processing text journal entry: {journal_entry}")
         
         try:
-            # Perform emotion analysis on text
+            logger.debug("Starting emotion analysis")
             emotion_results = analyze_emotions(journal_entry)
             wellbeing_score = calculate_wellbeing_score(emotion_results["averaged_emotions"])
+            logger.debug(f"Emotion Analysis: {emotion_results}, Wellbeing Score: {wellbeing_score}")
             
-            # Extract activities from the text
+            logger.debug("Extracting activities")
             activities = extract_activities(journal_entry)
+            logger.debug(f"Identified Activities: {activities}")
             
-            # Append the entry to the CSV file
+            logger.debug("Appending entry to CSV")
             with open(JOURNAL_CSV_PATH, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([timestamp, user_id, journal_entry, ", ".join(activities), "", wellbeing_score])
             
+            logger.debug("Text journal entry saved successfully")
             return jsonify({
                 "message": "Text journal entry saved successfully",
                 "emotion_analysis": emotion_results,
@@ -237,11 +392,12 @@ def save_journal_entry():
                 "identified_activities": activities
             }), 200
         except Exception as e:
+            logger.error(f"Error processing text journal entry: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
     
     else:
+        logger.error("Missing 'audio' or 'journal_entry' in request")
         return jsonify({"error": "Missing 'audio' or 'journal_entry' in request"}), 400
-
 # Gemini Handling For Custom Querys
 def GeminiCustom(query):
     return Garmin_API.client.models.generate_content(

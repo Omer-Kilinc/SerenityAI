@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"app/journal/page.tsx -> react-mic\":{\"id\":\"app/journal/page.tsx -> react-mic\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_react-mic_dist_index_js.js\"]}}"

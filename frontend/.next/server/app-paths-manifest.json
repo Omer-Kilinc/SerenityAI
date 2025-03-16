@@ -1,6 +1,4 @@
 {
-  "/ask-serenity/page": "app/ask-serenity/page.js",
-  "/page": "app/page.js",
-  "/journal/page": "app/journal/page.js",
-  "/history/page": "app/history/page.js"
+  "/history/page": "app/history/page.js",
+  "/journal/page": "app/journal/page.js"
 }
