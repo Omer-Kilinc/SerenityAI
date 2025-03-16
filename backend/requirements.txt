@@ -19,3 +19,4 @@ garminconnect
 google-genai
 transformers
 spacy
+pydub
